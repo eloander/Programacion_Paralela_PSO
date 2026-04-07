@@ -1,0 +1,45 @@
+# Default PSO configuration
+pso:
+  n_particles: 30
+  w: 0.7        # inertia weight
+  c1: 1.5       # cognitive coefficient
+  c2: 1.5       # social coefficient
+  max_iter: 500
+  topology: global          # global | ring
+  bounds_strategy: clamp    # clamp | reflect
+  tol: 1.0e-8               # improvement threshold for stagnation check
+  stagnation_iter: 50       # iterations without improvement before stopping
+  seed: 42
+
+objective:
+  name: sphere   # sphere | rosenbrock | rastrigin | ackley
+  dim: 10
+
+strategy:
+  name: v0          # v0 | v1 | v2 | v3
+  max_workers: null # null → os.cpu_count()
+  batch_size: 5     # V2 only: particles per subprocess batch
+  latency_range:    # V3 only: simulated async latency [lo, hi] seconds
+    - 0.005
+    - 0.03
+
+logging:
+  level: INFO    # DEBUG | INFO | WARNING
+  file: null     # null → stdout only
+
+output:
+  dir: results
+  save_trajectories: false
+  compress: true
+
+benchmarks:
+  dims: [2, 10, 30]
+  seeds: [0, 1, 2, 3, 4]
+  functions: [sphere, rosenbrock, rastrigin, ackley]
+
+grid_search:
+  w: [0.4, 0.7, 0.9]
+  c1: [1.0, 1.5, 2.0]
+  c2: [1.0, 1.5, 2.0]
+  n_particles: [20, 30]
+  seeds: [0, 1, 2, 3, 4]
