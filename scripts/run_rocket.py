@@ -148,13 +148,13 @@ def main() -> None:
     if not args.no_viz:
         traj_path = "rocket_trajectory.png"
         anim_path = "rocket_landing.gif"
-        print(f"\nSaving trajectory plot → {traj_path}")
+        print(f"\nSaving trajectory plot ->{traj_path}")
         try:
             plot_trajectory(best_params, save_path=traj_path)
         except Exception as exc:
             print(f"  [warning] trajectory plot failed: {exc}")
 
-        print(f"Saving landing animation → {anim_path}")
+        print(f"Saving landing animation ->{anim_path}")
         try:
             animate_landing(best_params, save_path=anim_path, fps=20, skip=2)
         except Exception as exc:

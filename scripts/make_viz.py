@@ -77,7 +77,7 @@ def _swarm2d(args: argparse.Namespace) -> None:
     out = args.out or "swarm_2d.gif"
     d = trajectories.shape[2]
     bounds = bench.bounds_array(d)
-    print(f"Saving 2-D animation → {out}")
+    print(f"Saving 2-D animation ->{out}")
     swarm_animation_2d(trajectories, bench.func, bounds, gbest_hist, out_path=out)
 
 
@@ -98,7 +98,7 @@ def _swarm3d(args: argparse.Namespace) -> None:
         gbest_hist = [r["best_fitness"] for r in data["history"]]
 
     out = args.out or "swarm_3d.gif"
-    print(f"Saving 3-D animation → {out}")
+    print(f"Saving 3-D animation -> {out}")
     swarm_animation_3d(trajectories, gbest_hist, out_path=out)
 
 
@@ -119,7 +119,7 @@ def _convergence(args: argparse.Namespace) -> None:
         return
 
     out = args.out or "convergence.png"
-    print(f"Saving convergence plot → {out}")
+    print(f"Saving convergence plot ->{out}")
     fig = convergence_plot(histories, out_path=out)
 
 
@@ -144,7 +144,7 @@ def _speedup(args: argparse.Namespace) -> None:
 
     mean_times = {st: statistics.mean(ts) for st, ts in times.items() if ts}
     out = args.out or "speedup.png"
-    print(f"Saving speedup plot → {out}")
+    print(f"Saving speedup plot ->{out}")
     speedup_plot(mean_times, out_path=out)
 
 
@@ -166,7 +166,7 @@ def _boxplot(args: argparse.Namespace) -> None:
         print("No fitness data found."); return
 
     out = args.out or "boxplot.png"
-    print(f"Saving boxplot → {out}")
+    print(f"Saving boxplot ->{out}")
     boxplot_fitness(fitnesses, out_path=out)
 
 

@@ -156,7 +156,7 @@ class TestMonotonicBest:
         for i in range(1, len(fitnesses)):
             assert fitnesses[i] <= fitnesses[i - 1] + 1e-12, (
                 f"Global best worsened at iter {i}: "
-                f"{fitnesses[i - 1]} → {fitnesses[i]}"
+                f"{fitnesses[i - 1]} -> {fitnesses[i]}"
             )
 
     def test_gbest_never_worsens_ring_topology(self):
