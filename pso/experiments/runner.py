@@ -84,6 +84,12 @@ def run_experiment(cfg: RunConfig) -> PSOResult:
         eval_kwargs["batch_size"] = cfg.batch_size
     elif cfg.strategy == "v3":
         eval_kwargs["latency_range"] = cfg.latency_range
+    elif cfg.strategy == "v4":
+        # Pass the vectorized variant if available; evaluator falls back to
+        # np.apply_along_axis otherwise.
+        eval_kwargs["vec_objective"] = bench.vec_func
+    elif cfg.strategy == "v5":
+        eval_kwargs["n_jobs"] = cfg.max_workers if cfg.max_workers else -1
 
     evaluator = build_evaluator(cfg.strategy, bench.func, **eval_kwargs)
 

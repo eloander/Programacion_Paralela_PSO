@@ -1,10 +1,10 @@
-"""PSO — Particle Swarm Optimization with parallel strategies (V0-V3)."""
+"""PSO — Particle Swarm Optimization with parallel strategies (V0-V5)."""
 import logging
 
 from pso.core.pso import PSO
 from pso.core.swarm import PSOResult
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 __all__ = ["PSO", "PSOResult"]
 
 # Configure library-level logger (NullHandler so it's silent unless the

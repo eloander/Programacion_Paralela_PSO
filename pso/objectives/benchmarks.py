@@ -3,6 +3,9 @@
 All functions are *module-level* so they can be pickled (required for
 multiprocessing on Windows).  Each accepts a 1-D NumPy array and returns
 a float.  Global minima are at *x = 0* (except Rosenbrock: *x = 1*).
+
+Vectorized variants (``*_vec``) accept an ``(n, d)`` matrix and return an
+``(n,)`` array — used by the V4 NumPy evaluator for zero-Python-loop evaluation.
 """
 from __future__ import annotations
 
@@ -13,7 +16,7 @@ import numpy as np
 
 
 # ---------------------------------------------------------------------------
-# Objective functions
+# Scalar objective functions  (1-D input → float)
 # ---------------------------------------------------------------------------
 
 def sphere(x: np.ndarray) -> float:
@@ -41,6 +44,38 @@ def ackley(x: np.ndarray) -> float:
 
 
 # ---------------------------------------------------------------------------
+# Vectorized objective functions  ((n, d) input → (n,) output)
+# Used by V4 VectorizedEvaluator — evaluated in a single NumPy matrix call.
+# ---------------------------------------------------------------------------
+
+def sphere_vec(X: np.ndarray) -> np.ndarray:
+    """Vectorized sphere: f(X) = row-wise Σ xᵢ².  X: (n, d) → (n,)."""
+    return np.sum(X ** 2, axis=1)
+
+
+def rosenbrock_vec(X: np.ndarray) -> np.ndarray:
+    """Vectorized Rosenbrock.  X: (n, d) → (n,)."""
+    return np.sum(
+        100.0 * (X[:, 1:] - X[:, :-1] ** 2) ** 2 + (1.0 - X[:, :-1]) ** 2,
+        axis=1,
+    )
+
+
+def rastrigin_vec(X: np.ndarray) -> np.ndarray:
+    """Vectorized Rastrigin.  X: (n, d) → (n,)."""
+    A = 10.0
+    return A * X.shape[1] + np.sum(X ** 2 - A * np.cos(2.0 * np.pi * X), axis=1)
+
+
+def ackley_vec(X: np.ndarray) -> np.ndarray:
+    """Vectorized Ackley.  X: (n, d) → (n,)."""
+    d = X.shape[1]
+    term1 = -20.0 * np.exp(-0.2 * np.sqrt(np.sum(X ** 2, axis=1) / d))
+    term2 = -np.exp(np.sum(np.cos(2.0 * np.pi * X), axis=1) / d)
+    return term1 + term2 + 20.0 + np.e
+
+
+# ---------------------------------------------------------------------------
 # Benchmark registry
 # ---------------------------------------------------------------------------
 
@@ -53,17 +88,31 @@ class Benchmark:
     lb: float   # lower bound (same for every dimension)
     ub: float   # upper bound (same for every dimension)
     known_minimum: float = 0.0
+    vec_func: Callable[[np.ndarray], np.ndarray] | None = None
+    # Per-dimension bounds as tuple of (lb, ub) pairs.  When set, overrides
+    # lb/ub in bounds_array() and the *d* argument is ignored.
+    bounds_override: tuple[tuple[float, float], ...] | None = None
 
     def bounds_array(self, d: int) -> np.ndarray:
         """Return ``(d, 2)`` bounds array for dimension *d*."""
+        if self.bounds_override is not None:
+            return np.array(self.bounds_override, dtype=float)
         return np.array([[self.lb, self.ub]] * d, dtype=float)
 
 
 BENCHMARKS: dict[str, Benchmark] = {
-    "sphere":     Benchmark("sphere",     sphere,     -5.12,   5.12,  0.0),
-    "rosenbrock": Benchmark("rosenbrock", rosenbrock, -2.048,  2.048, 0.0),
-    "rastrigin":  Benchmark("rastrigin",  rastrigin,  -5.12,   5.12,  0.0),
-    "ackley":     Benchmark("ackley",     ackley,     -32.768, 32.768, 0.0),
+    "sphere": Benchmark(
+        "sphere", sphere, -5.12, 5.12, 0.0, vec_func=sphere_vec,
+    ),
+    "rosenbrock": Benchmark(
+        "rosenbrock", rosenbrock, -2.048, 2.048, 0.0, vec_func=rosenbrock_vec,
+    ),
+    "rastrigin": Benchmark(
+        "rastrigin", rastrigin, -5.12, 5.12, 0.0, vec_func=rastrigin_vec,
+    ),
+    "ackley": Benchmark(
+        "ackley", ackley, -32.768, 32.768, 0.0, vec_func=ackley_vec,
+    ),
 }
 
 

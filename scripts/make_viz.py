@@ -11,6 +11,10 @@ python scripts/make_viz.py --mode convergence --runs-dir results
 
 # Speedup bar chart
 python scripts/make_viz.py --mode speedup --runs-dir results
+
+# Rocket landing trajectory (runs fresh PSO if no --run-dir given)
+python scripts/make_viz.py --mode rocket_traj
+python scripts/make_viz.py --mode rocket_traj --run-dir results/run_XYZ --out rocket.gif
 """
 from __future__ import annotations
 
@@ -22,6 +26,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import numpy as np
 
+import pso.objectives  # noqa: F401 — registers rocket in BENCHMARKS
 from pso.experiments.runner import RunConfig, run_experiment
 from pso.io.persistence import list_runs, load_result
 from pso.objectives.benchmarks import get_benchmark
@@ -37,11 +42,12 @@ from pso.viz.visualizer import (
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Generate PSO visualisations.")
     p.add_argument("--mode", required=True,
-                   choices=["swarm2d", "swarm3d", "convergence", "speedup", "boxplot"])
+                   choices=["swarm2d", "swarm3d", "convergence", "speedup",
+                            "boxplot", "rocket_traj"])
     p.add_argument("--run-dir",   default=None, help="Single run directory (for swarm modes).")
     p.add_argument("--runs-dir",  default="results", help="Root results directory.")
     p.add_argument("--benchmark", default="sphere",
-                   choices=["sphere","rosenbrock","rastrigin","ackley"])
+                   choices=["sphere", "rosenbrock", "rastrigin", "ackley", "rocket"])
     p.add_argument("--dim", type=int, default=2)
     p.add_argument("--out", default=None, help="Output file path.")
     return p.parse_args()
@@ -164,6 +170,43 @@ def _boxplot(args: argparse.Namespace) -> None:
     boxplot_fitness(fitnesses, out_path=out)
 
 
+def _rocket_traj(args: argparse.Namespace) -> None:
+    """Run PSO on the rocket objective and visualise the best trajectory."""
+    from pso.viz.rocket_viz import animate_landing, plot_trajectory
+
+    best_params = None
+
+    if args.run_dir is not None:
+        data = load_result(args.run_dir)
+        cfg_dict = data.get("config", {})
+        if cfg_dict.get("benchmark") == "rocket":
+            res = data.get("result", {})
+            best_params_list = res.get("best_position")
+            if best_params_list is not None:
+                best_params = np.array(best_params_list)
+
+    if best_params is None:
+        print("Running fresh PSO on rocket objective (v0, 30 particles, 200 iter) …")
+        cfg = RunConfig(
+            benchmark="rocket", dim=5, strategy="v0",
+            n_particles=30, max_iter=200, seed=42,
+            record_trajectories=False,
+        )
+        result = run_experiment(cfg)
+        best_params = result.best_position
+        print(f"  Best fitness: {result.best_fitness:.4f}")
+        print(f"  Best params:  {best_params}")
+
+    traj_out = args.out or "rocket_trajectory.png"
+    anim_out = traj_out.replace(".png", "_landing.gif") if traj_out.endswith(".png") else "rocket_landing.gif"
+
+    print(f"Saving trajectory plot -> {traj_out}")
+    plot_trajectory(best_params, save_path=traj_out)
+
+    print(f"Saving landing animation -> {anim_out}")
+    animate_landing(best_params, save_path=anim_out)
+
+
 def main() -> None:
     args = _parse_args()
     dispatch = {
@@ -172,6 +215,7 @@ def main() -> None:
         "convergence": _convergence,
         "speedup":     _speedup,
         "boxplot":     _boxplot,
+        "rocket_traj": _rocket_traj,
     }
     dispatch[args.mode](args)
 

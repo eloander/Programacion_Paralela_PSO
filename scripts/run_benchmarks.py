@@ -24,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from tqdm import tqdm
 
+import pso.objectives  # noqa: F401 — registers rocket in BENCHMARKS
 from pso.experiments.runner import RunConfig, run_experiment
 from pso.io.persistence import save_result
 from pso.objectives.benchmarks import BENCHMARKS
@@ -44,8 +45,8 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--dims", nargs="+", type=int, default=[2, 10, 30])
     p.add_argument("--seeds", type=int, default=5,
                    help="Number of seeds (0 … seeds-1).")
-    p.add_argument("--strategies", nargs="+", default=["v0","v1","v2","v3"],
-                   choices=["v0","v1","v2","v3"])
+    p.add_argument("--strategies", nargs="+", default=["v0", "v1", "v2", "v3"],
+                   choices=["v0", "v1", "v2", "v3", "v4", "v5"])
     p.add_argument("--n-particles", type=int, default=30)
     p.add_argument("--max-iter", type=int, default=500)
     p.add_argument("--max-workers", type=int, default=None)
@@ -59,13 +60,13 @@ def main() -> None:
     _setup_logging(args.log_level)
 
     seeds = list(range(args.seeds))
-    runs = [
-        (fn, d, s, st)
-        for fn in args.functions
-        for d  in args.dims
-        for s  in seeds
-        for st in args.strategies
-    ]
+    runs = []
+    for fn in args.functions:
+        dims = [5] if fn == "rocket" else args.dims  # rocket has fixed 5-D param space
+        for d in dims:
+            for s in seeds:
+                for st in args.strategies:
+                    runs.append((fn, d, s, st))
 
     print(f"Benchmark suite: {len(runs)} runs "
           f"({len(args.functions)} funcs × {len(args.dims)} dims × "
@@ -102,7 +103,7 @@ def main() -> None:
         key = (row["fn"], row["dim"], row["strategy"])
         groups[key].append((row["best"], row["time_s"]))
 
-    for (fn, dim, strategy), vals in sorted(groups.keys().__class__(groups).items()):
+    for (fn, dim, strategy), vals in sorted(groups.items()):
         bests, times = zip(*vals)
         print(
             f"{fn:<12} {dim:>4} {strategy:>10} "

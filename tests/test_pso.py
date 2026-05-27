@@ -12,11 +12,13 @@ import numpy as np
 import pytest
 
 from pso.core.pso import PSO
-from pso.objectives.benchmarks import ackley, rastrigin, rosenbrock, sphere
+from pso.objectives.benchmarks import ackley, rastrigin, rosenbrock, sphere, sphere_vec
 from pso.parallel.v0_sequential import SequentialEvaluator
 from pso.parallel.v1_threading import ThreadingEvaluator
 from pso.parallel.v2_multiprocessing import MultiprocessingEvaluator
 from pso.parallel.v3_asyncio import AsyncioEvaluator
+from pso.parallel.v4_numpy import VectorizedEvaluator
+from pso.parallel.v5_joblib import JoblibEvaluator
 
 
 # ---------------------------------------------------------------------------
@@ -39,6 +41,8 @@ def _make_pso(
         "v1": lambda: ThreadingEvaluator(objective, max_workers=2),
         "v2": lambda: MultiprocessingEvaluator(objective, max_workers=2, batch_size=5),
         "v3": lambda: AsyncioEvaluator(objective, latency_range=(0.0, 0.001), seed=seed),
+        "v4": lambda: VectorizedEvaluator(objective, vec_objective=sphere_vec),
+        "v5": lambda: JoblibEvaluator(objective, n_jobs=2),
     }
     ev = evaluator_map[strategy]()
     return PSO(
@@ -88,6 +92,18 @@ class TestReproducibility:
         r0 = _make_pso(seed=7, strategy="v0").run()
         r3 = _make_pso(seed=7, strategy="v3").run()
         assert abs(r0.best_fitness - r3.best_fitness) < 1e-12
+
+    def test_v0_v4_same_fitness(self):
+        """V4 vectorized must reach same best fitness as V0 (same RNG path)."""
+        r0 = _make_pso(seed=7, strategy="v0").run()
+        r4 = _make_pso(seed=7, strategy="v4").run()
+        assert abs(r0.best_fitness - r4.best_fitness) < 1e-10
+
+    def test_v0_v5_same_fitness(self):
+        """V5 joblib must reach same best fitness as V0 (same scalar function)."""
+        r0 = _make_pso(seed=7, strategy="v0").run()
+        r5 = _make_pso(seed=7, strategy="v5").run()
+        assert abs(r0.best_fitness - r5.best_fitness) < 1e-12
 
 
 # ---------------------------------------------------------------------------
@@ -229,6 +245,18 @@ class TestEvaluators:
         fit = ev.evaluate(pos)
         assert fit.shape == (10,)
 
+    def test_vectorized_output_shape(self):
+        ev = VectorizedEvaluator(sphere, vec_objective=sphere_vec)
+        pos = np.random.default_rng(0).uniform(-5, 5, (10, 4))
+        fit = ev.evaluate(pos)
+        assert fit.shape == (10,)
+
+    def test_joblib_output_shape(self):
+        ev = JoblibEvaluator(sphere, n_jobs=2)
+        pos = np.random.default_rng(0).uniform(-5, 5, (10, 4))
+        fit = ev.evaluate(pos)
+        assert fit.shape == (10,)
+
     def test_all_evaluators_agree(self):
         """All evaluators must return identical values for the same positions."""
         pos = np.random.default_rng(42).uniform(-5, 5, (12, 4))
@@ -237,6 +265,8 @@ class TestEvaluators:
             (ThreadingEvaluator,       {"max_workers": 2}),
             (MultiprocessingEvaluator, {"max_workers": 2, "batch_size": 4}),
             (AsyncioEvaluator,         {"latency_range": (0.0, 0.0), "seed": 0}),
+            (VectorizedEvaluator,      {"vec_objective": sphere_vec}),
+            (JoblibEvaluator,          {"n_jobs": 2}),
         ]:
             result = Ev(sphere, **kw).evaluate(pos)
             np.testing.assert_allclose(result, ref, rtol=1e-10, atol=1e-10)

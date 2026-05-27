@@ -12,12 +12,12 @@ pso:
   seed: 42
 
 objective:
-  name: sphere   # sphere | rosenbrock | rastrigin | ackley
-  dim: 10
+  name: sphere   # sphere | rosenbrock | rastrigin | ackley | rocket
+  dim: 10        # ignored for rocket (bounds_override enforces 5-D param space)
 
 strategy:
-  name: v0          # v0 | v1 | v2 | v3
-  max_workers: null # null → os.cpu_count()
+  name: v0          # v0 | v1 | v2 | v3 | v4 | v5
+  max_workers: null # null → os.cpu_count() (V1, V2, V5)
   batch_size: 5     # V2 only: particles per subprocess batch
   latency_range:    # V3 only: simulated async latency [lo, hi] seconds
     - 0.005
@@ -33,9 +33,9 @@ output:
   compress: true
 
 benchmarks:
-  dims: [2, 10, 30]
+  dims: [2, 10, 30]          # dim is fixed at 5 for rocket regardless of this list
   seeds: [0, 1, 2, 3, 4]
-  functions: [sphere, rosenbrock, rastrigin, ackley]
+  functions: [sphere, rosenbrock, rastrigin, ackley, rocket]
 
 grid_search:
   w: [0.4, 0.7, 0.9]

@@ -14,6 +14,12 @@ python scripts/run_pso.py --benchmark ackley --dim 10 --strategy v2 --batch-size
 
 # Asyncio, sphere d=2, with trajectory recording
 python scripts/run_pso.py --benchmark sphere --dim 2 --strategy v3 --trajectories
+
+# NumPy vectorized, sphere d=30
+python scripts/run_pso.py --benchmark sphere --dim 30 --strategy v4
+
+# Joblib parallel, rocket landing (5-D controller optimisation)
+python scripts/run_pso.py --benchmark rocket --strategy v5
 """
 from __future__ import annotations
 
@@ -27,6 +33,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import yaml
 
+import pso.objectives  # noqa: F401 — registers rocket in BENCHMARKS
 from pso.experiments.runner import RunConfig, run_experiment
 from pso.io.persistence import save_result
 
@@ -56,7 +63,8 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--config", default=None, help="Path to YAML config file.")
 
     # Benchmark
-    p.add_argument("--benchmark", default=None, choices=["sphere","rosenbrock","rastrigin","ackley"])
+    p.add_argument("--benchmark", default=None,
+                   choices=["sphere", "rosenbrock", "rastrigin", "ackley", "rocket"])
     p.add_argument("--dim", type=int, default=None)
 
     # PSO
@@ -69,7 +77,8 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--seed", type=int, default=None)
 
     # Evaluator
-    p.add_argument("--strategy", default=None, choices=["v0","v1","v2","v3"])
+    p.add_argument("--strategy", default=None,
+                   choices=["v0", "v1", "v2", "v3", "v4", "v5"])
     p.add_argument("--max-workers", type=int, default=None)
     p.add_argument("--batch-size", type=int, default=None)
 
@@ -90,22 +99,26 @@ def main() -> None:
     str_cfg  = yaml_cfg.get("strategy", {})
     out_cfg  = yaml_cfg.get("output", {})
 
+    def _get(cli_val, yaml_val, default):
+        """Return cli_val when explicitly provided (even if 0/0.0), else yaml, else default."""
+        return cli_val if cli_val is not None else (yaml_val if yaml_val is not None else default)
+
     cfg = RunConfig(
-        benchmark       = args.benchmark  or obj_cfg.get("name", "sphere"),
-        dim             = args.dim        or obj_cfg.get("dim", 10),
-        n_particles     = args.n_particles or pso_cfg.get("n_particles", 30),
-        w               = args.w          or pso_cfg.get("w", 0.7),
-        c1              = args.c1         or pso_cfg.get("c1", 1.5),
-        c2              = args.c2         or pso_cfg.get("c2", 1.5),
-        max_iter        = args.max_iter   or pso_cfg.get("max_iter", 500),
-        topology        = args.topology   or pso_cfg.get("topology", "global"),
+        benchmark       = _get(args.benchmark,    obj_cfg.get("name"),         "sphere"),
+        dim             = _get(args.dim,           obj_cfg.get("dim"),          10),
+        n_particles     = _get(args.n_particles,   pso_cfg.get("n_particles"),  30),
+        w               = _get(args.w,             pso_cfg.get("w"),            0.7),
+        c1              = _get(args.c1,            pso_cfg.get("c1"),           1.5),
+        c2              = _get(args.c2,            pso_cfg.get("c2"),           1.5),
+        max_iter        = _get(args.max_iter,      pso_cfg.get("max_iter"),     500),
+        topology        = _get(args.topology,      pso_cfg.get("topology"),     "global"),
         bounds_strategy = pso_cfg.get("bounds_strategy", "clamp"),
         tol             = pso_cfg.get("tol", 1e-8),
         stagnation_iter = pso_cfg.get("stagnation_iter", 50),
-        seed            = args.seed       or pso_cfg.get("seed", 42),
-        strategy        = args.strategy   or str_cfg.get("name", "v0"),
-        max_workers     = args.max_workers or str_cfg.get("max_workers"),
-        batch_size      = args.batch_size  or str_cfg.get("batch_size", 5),
+        seed            = _get(args.seed,          pso_cfg.get("seed"),         42),
+        strategy        = _get(args.strategy,      str_cfg.get("name"),         "v0"),
+        max_workers     = _get(args.max_workers,   str_cfg.get("max_workers"),  None),
+        batch_size      = _get(args.batch_size,    str_cfg.get("batch_size"),   5),
         latency_range   = tuple(str_cfg.get("latency_range", [0.005, 0.03])),
         record_trajectories = args.trajectories or out_cfg.get("save_trajectories", False),
     )
